@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Class {
+  id        String    @id @default(cuid())
+  name      String
+  tier      String
+  joinCode  String    @unique
+  teacherId String?
+  createdAt DateTime  @default(now())
+  students  Student[]
+  attempts  Attempt[]
+  teacher   User?     @relation(fields: [teacherId], references: [id])
+
+  @@index([teacherId])
+}
+
+model Student {
+  id                       String    @id @default(cuid())
+  classId                  String
+  nickname                 String
+  pinHash                  String?
+  pinUpdatedAt             DateTime?
+  currentStreak            Int       @default(0)
+  currentQuestionHash      String?
+  currentQuestionPrompt    String?
+  currentSkillTag          String?
+  currentQuestionStartedAt DateTime?
+  createdAt                DateTime  @default(now())
+  lastActiveAt             DateTime?
+  class                    Class     @relation(fields: [classId], references: [id])
+  attempts                 Attempt[]
+  assessmentOverrides      AssessmentOverride[]
+
+  @@index([classId])
+}
+
+model Attempt {
+  id             String   @id @default(cuid())
+  classId        String
+  studentId      String
+  questionHash   String
+  prompt         String
+  skillTag       String
+  difficulty     Int
+  correctAnswer  String
+  studentAnswer  String
+  isCorrect      Boolean
+  responseTimeMs Int
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  class          Class    @relation(fields: [classId], references: [id])
+  student        Student  @relation(fields: [studentId], references: [id])
+
+  @@index([classId, createdAt])
+  @@index([studentId, createdAt])
+  @@index([skillTag, isCorrect])
+}
+
+model AssessmentOverride {
+  id           String   @id @default(cuid())
+  studentId    String
+  unitId       String
+  overrideStatus String
+  assessorNote String?
+  assessorId   String
+  createdAt    DateTime @default(now())
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, unitId])
+  @@index([studentId])
+  @@index([unitId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  classes       Class[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
