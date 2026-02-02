@@ -68,18 +68,18 @@ To email magic links when trainees return by email, set:
 - `RESEND_API_KEY` — API key from [Resend](https://resend.com). If unset, magic-link emails are skipped (in dev the link is logged to the console).
 - `MAGIC_LINK_FROM_EMAIL` (optional) — From address for magic-link emails; defaults to Resend’s onboarding address.
 
-## Production (https://coefficient-phi.vercel.app)
+## Production (https://coefficient.work)
 
-1. **Vercel**: Deploy the app and add the domain **gorillamaths.com** in Project → Settings → Domains. Point your DNS to the records Vercel shows.
+1. **Vercel**: Deploy the app and add the domain **coefficient.work** in Project → Settings → Domains. Point your DNS to the records Vercel shows.
 2. **Environment variables** (Vercel → Settings → Environment Variables, Production):
-   - `NEXTAUTH_URL` = `https://gorillamaths.com`
+   - `NEXTAUTH_URL` = `https://coefficient.work`
    - `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (same as local or new)
    - `DATABASE_URL` = your production database URL (e.g. Vercel Postgres, Neon). SQLite is for local only.
-   - `NEXT_PUBLIC_APP_URL` = `https://gorillamaths.com` (optional; used so QR codes encode a full join URL)
+   - `NEXT_PUBLIC_APP_URL` = `https://coefficient.work` (optional; used so QR codes encode a full join URL)
    - `GEMINI_API_KEY` if you use Gemini in production
 3. **Google OAuth**: In Google Cloud Console → Credentials → your OAuth client, add:
-   - **Authorized JavaScript origins**: `https://gorillamaths.com`
-   - **Authorized redirect URIs**: `https://gorillamaths.com/api/auth/callback/google`
+   - **Authorized JavaScript origins**: `https://coefficient.work`
+   - **Authorized redirect URIs**: `https://coefficient.work/api/auth/callback/google`
 
 Keep `NEXTAUTH_URL="http://localhost:3000"` in local `.env` for development.
 
