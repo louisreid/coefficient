@@ -33,16 +33,40 @@ If this loop works for ROV competence assessment, the same engine can generalize
 
 ## How to run locally
 
-```bash
-pnpm install
-pnpm prisma migrate dev
-pnpm dev:local
-```
+Local development uses **PostgreSQL** via a **hosted Supabase project** (no Docker required).
+
+1. **Create a Supabase project**: Go to [supabase.com](https://supabase.com) and create a project (or use MCP: list orgs → confirm cost → create project). Note your database password.
+
+2. **Get connection strings**: In the Dashboard → **Project Settings → Database**, copy the **Connection string** (URI). Use **Session mode** for both `DATABASE_URL` and `DIRECT_URL` if not using the pooler; if using the pooler for `DATABASE_URL`, set `DIRECT_URL` to the **Session mode** URI for migrations.
+
+3. **Set `.env`**: Copy `.env.example` to `.env` and set `DATABASE_URL` and `DIRECT_URL` to those URIs (replace `[YOUR-PASSWORD]` with your project’s database password).
+
+4. **Apply migrations and run**:
+
+   ```bash
+   pnpm install
+   pnpm prisma migrate deploy
+   pnpm dev:local
+   ```
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000) (or [http://localhost:3000](http://localhost:3000)) to start.
 
 - **`pnpm dev:local`** — Recommended: binds to 127.0.0.1 and uses webpack (avoids `uv_interface_addresses` and Turbopack/Tailwind resolution issues).
 - **`pnpm dev`** — Runs Next.js + Jest watch; use if you need the test watcher.
+
+**Tests** require a Postgres database: set `DATABASE_URL` (and `DIRECT_URL` if using a pooler) in your environment—e.g. the same hosted Supabase URL as in your `.env`—then run `pnpm test`.
+
+### Alternative: local Supabase (Docker)
+
+If you prefer to run Postgres locally, **Docker** (or OrbStack/Podman) must be installed and running. Then:
+
+```bash
+npx supabase init   # once per repo
+npx supabase start
+npx supabase status # copy DB URL
+```
+
+Set `DATABASE_URL` and `DIRECT_URL` in `.env` to the DB URL from `supabase status` (e.g. `postgresql://postgres:postgres@127.0.0.1:54322/postgres`). For local, both can be the same. Then run `pnpm prisma migrate deploy` and `pnpm dev:local` as above.
 
 ## Environment variables
 
@@ -74,9 +98,12 @@ To email magic links when trainees return by email, set:
 2. **Environment variables** (Vercel → Settings → Environment Variables, Production):
    - `NEXTAUTH_URL` = `https://coefficient.work`
    - `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (same as local or new)
-   - `DATABASE_URL` = your production database URL (e.g. Vercel Postgres, Neon). SQLite is for local only.
+   - `DATABASE_URL` = your production Postgres URL (e.g. Supabase: Project Settings → Database → Connection string, URI; use Session mode for direct, or Transaction mode for pooler).
+   - `DIRECT_URL` = same as `DATABASE_URL` if not using a pooler; if using Supabase pooler for `DATABASE_URL`, set this to the **Session mode** (direct) URI for migrations.
    - `NEXT_PUBLIC_APP_URL` = `https://coefficient.work` (optional; used so QR codes encode a full join URL)
    - `GEMINI_API_KEY` if you use Gemini in production
+
+   After adding env, run `pnpm prisma migrate deploy` against the production DB (e.g. set `DATABASE_URL` and `DIRECT_URL` locally to production values, or run in CI) to apply migrations.
 3. **Google OAuth**: In Google Cloud Console → Credentials → your OAuth client, add:
    - **Authorized JavaScript origins**: `https://coefficient.work`
    - **Authorized redirect URIs**: `https://coefficient.work/api/auth/callback/google`
@@ -85,7 +112,7 @@ Keep `NEXTAUTH_URL="http://localhost:3000"` in local `.env` for development.
 
 ## Notes
 
-- SQLite database is configured in `.env` (`DATABASE_URL="file:./dev.db"`).
+- Database is **PostgreSQL** (dev and tests via a hosted Supabase project, or optional local Supabase CLI + Docker; production via Supabase). Configure `DATABASE_URL` and `DIRECT_URL` in `.env` (see above).
 - Server Actions power mutations for class creation, joining, onboarding, and
   attempt recording.
 - Question generation is deterministic by template and seeded values.

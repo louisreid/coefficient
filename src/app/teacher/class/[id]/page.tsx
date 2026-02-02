@@ -6,10 +6,14 @@ import { TeacherAuth } from "@/components/TeacherAuth";
 import { TeacherPinResetList } from "@/components/TeacherPinResetList";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { getTraineeAssessmentSummaries } from "@/lib/actions/assessments";
+import {
+  getTraineeAssessmentSummaries,
+  getReviewItems,
+} from "@/lib/actions/assessments";
 import { getTeacherDashboard } from "@/lib/analytics";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { ReviewQueueSection } from "./ReviewQueueSection";
 
 type TeacherClassPageProps = {
   params: Promise<{ id?: string }>;
@@ -54,6 +58,12 @@ export default async function TeacherClassPage({
   );
   const assessmentByStudentId = new Map(
     (assessments ?? []).map((row) => [row.studentId, row]),
+  );
+  const reviewItems = await getReviewItems(
+    classInfo.id,
+    session.user.id,
+    undefined,
+    "severity",
   );
 
   return (
@@ -101,6 +111,11 @@ export default async function TeacherClassPage({
           </Card>
         </div>
       </div>
+
+      <ReviewQueueSection
+        classId={classInfo.id}
+        reviewItems={reviewItems ?? []}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

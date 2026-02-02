@@ -3,13 +3,25 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (process.env.NODE_ENV === "production" && (value == null || value === "")) {
+    throw new Error(
+      `Missing required env for auth in production: ${name}. Set it in your hosting provider (e.g. Vercel).`,
+    );
+  }
+  return value ?? "";
+}
+
 export const authOptions: NextAuthOptions = {
-  trustHost: true,
   adapter: PrismaAdapter(prisma),
+  secret: getRequiredEnv("NEXTAUTH_SECRET"),
+  // trustHost required in serverless/proxy environments; NextAuthOptions type may not include it
+  ...({ trustHost: true } as Partial<NextAuthOptions>),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: getRequiredEnv("GOOGLE_CLIENT_ID"),
+      clientSecret: getRequiredEnv("GOOGLE_CLIENT_SECRET"),
     }),
   ],
   session: { strategy: "database" },

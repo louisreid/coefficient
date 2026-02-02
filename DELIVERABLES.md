@@ -63,7 +63,7 @@
    (Or `pnpm exec prisma db push` for dev.)
 
 3. **Environment**
-   - Copy `.env.example` to `.env` if present, or set `DATABASE_URL="file:./dev.db"` and optionally `GEMINI_API_KEY` for AI assessor feedback.
+   - Copy `.env.example` to `.env` and set `DATABASE_URL` and `DIRECT_URL` from your Supabase project (see README). Optionally set `GEMINI_API_KEY` for AI assessor feedback.
 
 4. **Start dev server**
    ```bash

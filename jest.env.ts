@@ -1,5 +1,3 @@
 process.env.NODE_ENV = "test";
 
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "file:./test.db";
-}
+// Tests that use the DB require DATABASE_URL (and DIRECT_URL) in .env (e.g. from your Supabase project). See README.

@@ -4,8 +4,18 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ROV_PRE_DIVE_GO_NO_GO, UNIT_LABELS } from "@/lib/competence/config";
 import { computeScoringSummary } from "@/lib/competence/scoring";
+import { logEvidenceExport } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
+
+/** EPIC 3.3 — Block export if unresolved CriticalFail flags. */
+function isExportBlocked(
+  summary: { criticalFailsCount: number },
+  override: { overrideStatus: string } | null
+): boolean {
+  if (summary.criticalFailsCount === 0) return false;
+  return override == null;
+}
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -16,6 +26,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const classId = searchParams.get("classId");
   const studentId = searchParams.get("studentId");
+  const format = searchParams.get("format") ?? "html"; // html | json
 
   if (!classId || !studentId) {
     return new Response("Missing classId or studentId", { status: 400 });
@@ -31,7 +42,12 @@ export async function GET(request: NextRequest) {
 
   const student = await prisma.student.findFirst({
     where: { id: studentId, classId },
-    select: { id: true, nickname: true },
+    select: {
+      id: true,
+      nickname: true,
+      legalName: true,
+      identityBoundAt: true,
+    },
   });
   if (!student) {
     return new Response("Trainee not found", { status: 404 });
@@ -42,6 +58,7 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
+      questionHash: true,
       prompt: true,
       correctAnswer: true,
       studentAnswer: true,
@@ -64,8 +81,19 @@ export async function GET(request: NextRequest) {
     where: {
       studentId_unitId: { studentId, unitId: ROV_PRE_DIVE_GO_NO_GO },
     },
-    select: { overrideStatus: true, assessorNote: true },
+    select: { overrideStatus: true, assessorNote: true, assessorId: true },
   });
+
+  if (isExportBlocked(summary, override)) {
+    return new Response(
+      JSON.stringify({
+        error: "Export blocked",
+        reason:
+          "Unresolved CriticalFail flags. Complete assessor review and set an override before exporting.",
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   const displayStatus = override?.overrideStatus ?? summary.status;
   const unitName = UNIT_LABELS[ROV_PRE_DIVE_GO_NO_GO] ?? ROV_PRE_DIVE_GO_NO_GO;
@@ -73,6 +101,12 @@ export async function GET(request: NextRequest) {
     attempts.length > 0
       ? `${new Date(attempts[0].createdAt).toLocaleDateString()} — ${new Date(attempts[attempts.length - 1].createdAt).toLocaleDateString()}`
       : new Date().toLocaleDateString();
+
+  const assessorIdentity = session.user.email ?? session.user.name ?? session.user.id;
+  const traineeLegalIdentity =
+    student.legalName && student.identityBoundAt
+      ? { legalName: student.legalName, boundAt: student.identityBoundAt.toISOString() }
+      : null;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -102,6 +136,8 @@ export async function GET(request: NextRequest) {
     <p><strong>Cohort:</strong> ${escapeHtml(classInfo.name)}</p>
     <p><strong>Unit:</strong> ${escapeHtml(unitName)}</p>
     <p><strong>Trainee (pseudonym):</strong> ${escapeHtml(student.nickname)}</p>
+    ${traineeLegalIdentity ? `<p><strong>Trainee (legal identity):</strong> ${escapeHtml(traineeLegalIdentity.legalName)} (bound ${new Date(traineeLegalIdentity.boundAt).toLocaleDateString()})</p>` : ""}
+    <p><strong>Assessor:</strong> ${escapeHtml(String(assessorIdentity))}</p>
     <p><strong>Date:</strong> ${escapeHtml(dateRange)}</p>
   </div>
 
@@ -136,6 +172,58 @@ export async function GET(request: NextRequest) {
   </div>
 </body>
 </html>`;
+
+  const exportFormat = format === "json" ? "json" : "html";
+  await logEvidenceExport({
+    assessorId: session.user.id,
+    studentId,
+    unitId: ROV_PRE_DIVE_GO_NO_GO,
+    classId,
+    format: exportFormat,
+  });
+
+  if (format === "json") {
+    const jsonPack = {
+      evidencePack: {
+        cohort: { id: classInfo.id, name: classInfo.name },
+        unit: { id: ROV_PRE_DIVE_GO_NO_GO, name: unitName },
+        traineePseudonym: student.nickname,
+        traineeLegalIdentity: traineeLegalIdentity,
+        assessorIdentity,
+        dateRange,
+        exportedAt: new Date().toISOString(),
+        criteriaMapping: summary.topFailureModeTags,
+        scoringSummary: {
+          totalAttempted: summary.totalAttempted,
+          accuracyPct: summary.accuracyPct,
+          criticalFailsCount: summary.criticalFailsCount,
+          status: displayStatus,
+          assessorOverride: override != null,
+        },
+        citedEvidence: attempts.map((a, i) => ({
+          index: i + 1,
+          attemptId: a.id,
+          questionHash: a.questionHash,
+          prompt: a.prompt,
+          studentAnswer: a.studentAnswer,
+          correctAnswer: a.correctAnswer,
+          isCorrect: a.isCorrect,
+          createdAt: a.createdAt.toISOString(),
+          metadata: a.metadata,
+        })),
+        signOff: {
+          status: displayStatus,
+          assessorNote: override?.assessorNote ?? null,
+        },
+      },
+    };
+    return new Response(JSON.stringify(jsonPack, null, 2), {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": `attachment; filename="evidence-${slug(student.nickname)}-${new Date().toISOString().slice(0, 10)}.json"`,
+      },
+    });
+  }
 
   return new Response(html, {
     headers: {

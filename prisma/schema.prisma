@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Class {
@@ -26,6 +27,8 @@ model Student {
   classId                  String
   nickname                 String
   email                    String?
+  legalName                String?   // Identity binding (post-assessment); minimal PII
+  identityBoundAt          DateTime? // When pseudonym was bound to legal identity
   pinHash                  String?
   pinUpdatedAt             DateTime?
   magicLinkToken           String?
@@ -61,6 +64,8 @@ model Attempt {
   createdAt      DateTime @default(now())
   class          Class    @relation(fields: [classId], references: [id])
   student        Student  @relation(fields: [studentId], references: [id])
+  evidenceItems  EvidenceItem[]
+  aiAnnotations  AIAnnotation[]
 
   @@index([classId, createdAt])
   @@index([studentId, createdAt])
@@ -68,18 +73,98 @@ model Attempt {
 }
 
 model AssessmentOverride {
-  id           String   @id @default(cuid())
-  studentId    String
-  unitId       String
+  id             String   @id @default(cuid())
+  studentId      String
+  unitId         String
   overrideStatus String
-  assessorNote String?
-  assessorId   String
-  createdAt    DateTime @default(now())
-  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assessorNote   String?
+  assessorId     String
+  createdAt      DateTime @default(now())
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, unitId])
   @@index([studentId])
   @@index([unitId])
+}
+
+// --- Assessment Evidence Graph (EPIC 0) ---
+
+model CompetenceCriterion {
+  id          String   @id @default(cuid())
+  unitId      String
+  code        String
+  description String
+  createdAt   DateTime @default(now())
+  evidenceItems EvidenceItem[]
+
+  @@unique([unitId, code])
+  @@index([unitId])
+}
+
+model FailureMode {
+  id          String   @id @default(cuid())
+  unitId      String
+  tag         String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@unique([unitId, tag])
+  @@index([unitId])
+}
+
+model EvidenceItem {
+  id         String   @id @default(cuid())
+  attemptId  String
+  criterionId String
+  supporting  Boolean  // true = supports criterion, false = contradicts
+  createdAt  DateTime @default(now())
+  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  criterion  CompetenceCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+  @@index([criterionId])
+}
+
+model AIAnnotation {
+  id                      String   @id @default(cuid())
+  attemptId               String
+  confidenceScore         Float    // 0–1, bounded
+  reasonForReview         String?
+  suggestedFailureModeTags Json?   // string[] from rubric/response only
+  modelVersion            String?
+  createdAt               DateTime @default(now())
+  attempt                 Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+}
+
+model EvidencePack {
+  id             String    @id @default(cuid())
+  studentId      String
+  unitId         String
+  classId        String
+  assessorId     String
+  exportedAt     DateTime  @default(now())
+  identityBoundAt DateTime?
+  snapshot       Json      // criteria, cited attempts, assessor decisions
+  pdfBlobUrl     String?
+
+  @@index([studentId, unitId])
+  @@index([exportedAt])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorType  String   // "ai" | "assessor" | "system"
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 model User {

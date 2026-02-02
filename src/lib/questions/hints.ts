@@ -1,7 +1,7 @@
 import type { HintCard } from "@/lib/questions/types";
-import { SkillTag } from "@/lib/constants";
+import { LEGACY_SKILLS, SKILLS } from "@/lib/constants";
 
-const HINTS: Record<SkillTag, HintCard[]> = {
+const LEGACY_HINTS: Record<(typeof LEGACY_SKILLS)[number], HintCard[]> = {
   INT_ADD_SUB: [
     {
       title: "Subtracting a negative",
@@ -30,7 +30,21 @@ const HINTS: Record<SkillTag, HintCard[]> = {
   ],
 };
 
-export function getHint(skill: SkillTag): HintCard {
-  const list = HINTS[skill];
+const ROV_HINTS: Record<(typeof SKILLS)[number], HintCard[]> = {
+  ROV_PRE_DIVE_GO_NO_GO: [
+    {
+      title: "Pre-dive checklist",
+      oneSentence: "Complete every checklist item before sign-off; no exceptions.",
+      example: "Tether, then power-on, then thruster spin-up.",
+    },
+  ],
+};
+
+const HINTS = { ...LEGACY_HINTS, ...ROV_HINTS };
+
+export function getHint(
+  skill: (typeof LEGACY_SKILLS)[number] | (typeof SKILLS)[number],
+): HintCard {
+  const list = HINTS[skill as keyof typeof HINTS];
   return list[0];
 }

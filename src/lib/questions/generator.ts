@@ -98,8 +98,13 @@ export function generateQuestion(
     ({ prompt, answer: correctAnswer } = makeAddSub(rand, safeDifficulty));
   } else if (skill === "INT_MUL_DIV") {
     ({ prompt, answer: correctAnswer } = makeMulDiv(rand, safeDifficulty));
-  } else {
+  } else if (skill === "BIDMAS_INT") {
     ({ prompt, answer: correctAnswer } = makeBidmas(rand, safeDifficulty));
+  } else {
+    // ROV_PRE_DIVE_GO_NO_GO: use competence/generator, not this maths generator
+    throw new Error(
+      "Use competence/generator for ROV_PRE_DIVE_GO_NO_GO; this generator is for maths skills only.",
+    );
   }
 
   return {

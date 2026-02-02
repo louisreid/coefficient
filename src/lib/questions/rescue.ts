@@ -1,7 +1,7 @@
 import type { RescueCard } from "@/lib/questions/types";
-import { SkillTag } from "@/lib/constants";
+import { LEGACY_SKILLS, SKILLS } from "@/lib/constants";
 
-const RESCUES: Record<SkillTag, RescueCard> = {
+const LEGACY_RESCUES: Record<(typeof LEGACY_SKILLS)[number], RescueCard> = {
   INT_ADD_SUB: {
     title: "Rescue: adding negatives",
     example: "Example: -3 + 7 = 4 (think 7 - 3)",
@@ -22,6 +22,19 @@ const RESCUES: Record<SkillTag, RescueCard> = {
   },
 };
 
-export function getRescue(skill: SkillTag) {
-  return RESCUES[skill];
+const ROV_RESCUES: Record<(typeof SKILLS)[number], RescueCard> = {
+  ROV_PRE_DIVE_GO_NO_GO: {
+    title: "Rescue: pre-dive checklist",
+    example: "Complete every item before go.",
+    prompt: "Pre-dive checklist: tether continuity shows open circuit. What do you do?",
+    answer: "No-go: stop, tag out, report; do not launch until cleared.",
+  },
+};
+
+const RESCUES = { ...LEGACY_RESCUES, ...ROV_RESCUES };
+
+export function getRescue(
+  skill: (typeof LEGACY_SKILLS)[number] | (typeof SKILLS)[number],
+) {
+  return RESCUES[skill as keyof typeof RESCUES];
 }

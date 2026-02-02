@@ -16,6 +16,16 @@ export const SCORING = {
   AT_RISK_WRONG_THRESHOLD: 5,
 } as const;
 
+/** Rule-based risk flags (EPIC 2.1): time and justification thresholds */
+export const RISK_FLAGS = {
+  /** Response time below this (ms) = too fast / possible guessing */
+  MIN_RESPONSE_TIME_MS: 3000,
+  /** Response time above this (ms) = too slow / possible off-task */
+  MAX_RESPONSE_TIME_MS: 300_000,
+  /** Justification length below this = below threshold when MCQ was correct */
+  MIN_JUSTIFICATION_LENGTH: 20,
+} as const;
+
 /** Scenario templates for ROV Pre-Dive Go/No-Go. At least 20 for deterministic pick. */
 export const ROV_PRE_DIVE_TEMPLATES: ScenarioTemplate[] = [
   {
@@ -349,3 +359,9 @@ export const ROV_PRE_DIVE_TEMPLATES: ScenarioTemplate[] = [
     criticalFail: false,
   },
 ];
+
+/** Rubric excerpt (rationale) by scenario template id — for assessor review (EPIC 2.3). */
+export function getRubricExcerptByTemplateId(templateId: string): string | null {
+  const t = ROV_PRE_DIVE_TEMPLATES.find((x) => x.id === templateId);
+  return t?.rationale ?? null;
+}
