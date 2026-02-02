@@ -10,8 +10,13 @@ async function wrappedHandler(
   try {
     return await handler(req, context);
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("[NextAuth]", error);
-    throw error;
+    // Return 500 with error message so it's visible in Network tab / logs without needing Vercel dashboard
+    return new Response(
+      JSON.stringify({ error: "Server error", message }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }
 

@@ -13,6 +13,16 @@ function getRequiredEnv(name: string): string {
   return value ?? "";
 }
 
+// NextAuth needs NEXTAUTH_URL in production (Vercel can infer from VERCEL_URL; setting it explicitly is safest).
+const rawNextAuthUrl = (process.env.NEXTAUTH_URL ?? "").trim();
+const nextAuthUrl =
+  rawNextAuthUrl || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+if (process.env.NODE_ENV === "production" && !nextAuthUrl) {
+  throw new Error(
+    "Missing NEXTAUTH_URL in production. Set it in Vercel (e.g. https://coefficient.work) or rely on VERCEL_URL.",
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   secret: getRequiredEnv("NEXTAUTH_SECRET"),
