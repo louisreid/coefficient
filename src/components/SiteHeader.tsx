@@ -11,18 +11,18 @@ export function SiteHeader() {
   const isTeacher = pathname?.startsWith("/teacher") ?? false;
 
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50">
+    <header className="sticky top-0 z-10 border-b border-base-300 bg-base-100">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-6">
           <Link
             href="/"
-            className="text-lg font-semibold text-slate-900 hover:text-slate-700"
+            className="text-lg font-semibold text-base-content hover:text-base-content/80"
           >
             Coefficient Assess
           </Link>
           <Link
             href="/#features"
-            className="text-sm font-medium text-slate-600 hover:text-slate-900"
+            className="text-sm font-medium text-base-content/70 hover:text-base-content"
           >
             Features
           </Link>
@@ -30,13 +30,13 @@ export function SiteHeader() {
 
         <nav className="flex items-center gap-3">
           {status === "loading" ? (
-            <span className="text-sm text-slate-500">Loading...</span>
+            <span className="text-sm text-base-content/60">Loading...</span>
           ) : session?.user ? (
             <>
               <Link
                 href="/teacher"
                 className={`text-sm font-semibold ${
-                  isTeacher ? "text-slate-900" : "text-slate-600 hover:text-slate-900"
+                  isTeacher ? "text-base-content" : "text-base-content/70 hover:text-base-content"
                 }`}
               >
                 Dashboard
@@ -46,10 +46,10 @@ export function SiteHeader() {
               </Button>
             </>
           ) : (
-            <Link
-              href="/api/auth/signin?callbackUrl=%2Fteacher"
-              className="text-sm font-semibold text-slate-600 hover:text-slate-900"
-            >
+<Link
+                href="/api/auth/signin?callbackUrl=%2Fteacher"
+                className="text-sm font-semibold text-base-content/70 hover:text-base-content"
+              >
               Assessor sign in
             </Link>
           )}
