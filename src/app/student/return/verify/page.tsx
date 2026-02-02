@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import { verifyMagicLinkAction } from "@/lib/actions/students";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
-export default function StudentReturnVerifyPage() {
+function StudentReturnVerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"pending" | "ok" | "error">("pending");
@@ -67,5 +68,21 @@ export default function StudentReturnVerifyPage() {
         </p>
       </Card>
     </main>
+  );
+}
+
+export default function StudentReturnVerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-8 px-6 py-12">
+          <Card>
+            <p className="text-slate-600">Loading…</p>
+          </Card>
+        </main>
+      }
+    >
+      <StudentReturnVerifyContent />
+    </Suspense>
   );
 }
