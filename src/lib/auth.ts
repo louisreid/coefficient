@@ -35,6 +35,14 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   session: { strategy: "database" },
+  events: {
+    signIn: async ({ user, account }) => {
+      console.log("[NextAuth signIn event]", { email: user?.email, provider: account?.provider });
+    },
+    error: async ({ error }) => {
+      console.error("[NextAuth error event]", error);
+    },
+  },
   callbacks: {
     session: async ({ session, user }) => {
       if (session.user) {
