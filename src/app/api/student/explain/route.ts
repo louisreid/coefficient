@@ -81,7 +81,40 @@ export async function POST(request: NextRequest) {
         .filter(Boolean)
         .join("\n");
 
+  const fallbackScenario: AssessorFeedbackResponse = {
+  likelyFailureMode: "Procedure or judgment error",
+  whyItMatters: "Safety and auditability depend on correct procedure.",
+  correctAction: "Follow the pre-dive/go-no-go checklist and escalate when in doubt.",
+  correctSequence: [
+    "Complete all checklist items before sign-off.",
+    "Do not launch with known defects or unresolved anomalies.",
+    "Escalate to supervisor when outside standard procedure.",
+  ],
+  remediationDrill: [
+    "When may you skip a checklist item?",
+    "Who has authority to give the final go for launch?",
+  ],
+};
+
+const fallbackLegacy: LegacyResponse = {
+  likelyMistake: "Check the operation order.",
+  explanation: "Do multiplication/division before addition/subtraction.",
+  steps: [],
+};
+
+function getResponseText(result: { response: { text?: () => string; candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> } }): string {
   try {
+    const t = result.response.text?.();
+    if (typeof t === "string" && t.trim()) return t;
+  } catch {
+    // text() can throw when blocked or empty
+  }
+  const part = result.response.candidates?.[0]?.content?.parts?.[0];
+  const t = part?.text;
+  return typeof t === "string" ? t : "";
+}
+
+try {
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
@@ -90,45 +123,35 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const text = result.response.text();
+    const text = getResponseText(result);
     if (isScenario) {
       let parsed: AssessorFeedbackResponse | null = null;
       try {
-        parsed = JSON.parse(text) as AssessorFeedbackResponse;
+        parsed = text ? (JSON.parse(text) as AssessorFeedbackResponse) : null;
       } catch {
-        parsed = {
-          likelyFailureMode: "Procedure or judgment error",
-          whyItMatters: "Safety and auditability depend on correct procedure.",
-          correctAction: "Follow the pre-dive/go-no-go checklist and escalate when in doubt.",
-          correctSequence: [
-            "Complete all checklist items before sign-off.",
-            "Do not launch with known defects or unresolved anomalies.",
-            "Escalate to supervisor when outside standard procedure.",
-          ],
-          remediationDrill: [
-            "When may you skip a checklist item?",
-            "Who has authority to give the final go for launch?",
-          ],
-        };
+        parsed = null;
       }
+      if (!parsed) parsed = fallbackScenario;
       return Response.json(parsed);
     }
 
     let parsed: LegacyResponse | null = null;
     try {
-      parsed = JSON.parse(text) as LegacyResponse;
+      parsed = text ? (JSON.parse(text) as LegacyResponse) : null;
     } catch {
-      parsed = {
-        likelyMistake: "Check the operation order.",
-        explanation: "Do multiplication/division before addition/subtraction.",
-        steps: [],
-      };
+      parsed = null;
     }
+    if (!parsed) parsed = fallbackLegacy;
     return Response.json(parsed);
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Gemini request failed.";
+    console.error("[student/explain] Gemini error:", err);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[student/explain] details:", message);
+    }
     return Response.json(
-      { error: "Gemini request failed." },
-      { status: 500 },
+      isScenario ? fallbackScenario : fallbackLegacy,
+      { status: 200 },
     );
   }
 }

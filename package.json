@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"next dev\" \"pnpm test:watch\"",
+    "dev:local": "next dev --hostname 127.0.0.1 -p 3000 --webpack",
     "build": "next build",
     "postinstall": "prisma generate",
     "start": "next start",
@@ -22,6 +23,7 @@
     "qrcode.react": "^4.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "resend": "^6.9.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

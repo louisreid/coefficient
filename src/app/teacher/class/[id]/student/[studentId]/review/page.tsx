@@ -19,15 +19,17 @@ type ReviewPageProps = {
 };
 
 export default async function ReviewPage({ params }: ReviewPageProps) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/api/auth/signin");
-  }
-
   const resolved = await params;
   const classId = resolved?.id;
   const studentId = resolved?.studentId;
   if (!classId || !studentId) notFound();
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect(
+      `/api/auth/signin?callbackUrl=${encodeURIComponent(`/teacher/class/${classId}/student/${studentId}/review`)}`,
+    );
+  }
 
   const data = await getTeacherDashboard(classId, session.user.id);
   if (!data) notFound();
@@ -85,7 +87,7 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
         >
           ← Back to cohort
         </Link>
-        <TeacherAuth />
+        <TeacherAuth session={session} />
       </div>
 
       <header className="space-y-1">

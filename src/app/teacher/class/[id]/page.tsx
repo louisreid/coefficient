@@ -18,14 +18,16 @@ type TeacherClassPageProps = {
 export default async function TeacherClassPage({
   params,
 }: TeacherClassPageProps) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/api/auth/signin");
-  }
-
   const resolvedParams = await params;
   if (!resolvedParams?.id) {
     notFound();
+  }
+
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect(
+      `/api/auth/signin?callbackUrl=${encodeURIComponent(`/teacher/class/${resolvedParams.id}`)}`,
+    );
   }
 
   const data = await getTeacherDashboard(resolvedParams.id, session.user.id);
@@ -38,18 +40,27 @@ export default async function TeacherClassPage({
   const students = await prisma.student.findMany({
     where: { classId: classInfo.id },
     orderBy: { createdAt: "asc" },
-    select: { id: true, nickname: true },
+    select: {
+      id: true,
+      nickname: true,
+      createdAt: true,
+      lastActiveAt: true,
+      currentQuestionHash: true,
+    },
   });
   const assessments = await getTraineeAssessmentSummaries(
     classInfo.id,
     session.user.id,
+  );
+  const assessmentByStudentId = new Map(
+    (assessments ?? []).map((row) => [row.studentId, row]),
   );
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-6 py-12">
       <div className="flex items-center justify-between">
         <div />
-        <TeacherAuth />
+        <TeacherAuth session={session} />
       </div>
       <header className="space-y-1">
         <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -154,71 +165,99 @@ export default async function TeacherClassPage({
         </Card>
       </div>
 
-      {assessments != null ? (
-        <Card>
-          <h2 className="text-lg font-semibold text-slate-900">Assessments</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Latest assessment summary per trainee (ROV Pre-Dive). Review and override if needed.
-          </p>
-          <div className="mt-4 space-y-3">
-            {assessments.length === 0 ? (
-              <p className="text-sm text-slate-500">No trainees in this cohort yet.</p>
-            ) : (
-              assessments.map((row) => {
-                const status = row.overrideStatus ?? row.summary.status;
-                const statusClass =
-                  status === "PASS"
-                    ? "text-emerald-600"
-                    : status === "BORDERLINE"
-                      ? "text-amber-600"
-                      : "text-rose-600";
-                return (
-                  <div
-                    key={row.studentId}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2"
-                  >
+      <Card>
+        <h2 className="text-lg font-semibold text-slate-900">Trainees</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Trainees who have joined this cohort. Review sessions and reset PINs as needed.
+        </p>
+        <div className="mt-4 space-y-4">
+          {students.length === 0 ? (
+            <p className="text-sm text-slate-500">No trainees have joined yet.</p>
+          ) : (
+            students.map((student) => {
+              const row = assessmentByStudentId.get(student.id);
+              const status = row?.overrideStatus ?? row?.summary.status ?? null;
+              const statusClass =
+                status === "PASS"
+                  ? "text-emerald-600"
+                  : status === "BORDERLINE"
+                    ? "text-amber-600"
+                    : status === "FAIL"
+                      ? "text-rose-600"
+                      : "text-slate-500";
+              const isLive = !!student.currentQuestionHash;
+              return (
+                <div
+                  key={student.id}
+                  className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="font-semibold text-slate-900">
-                        {row.nickname}
+                        {student.nickname}
                       </span>
-                      <span className={`text-sm font-semibold ${statusClass}`}>
-                        {status}
-                        {row.overrideStatus != null ? " (override)" : ""}
-                      </span>
-                      <span className="text-sm text-slate-500">
-                        {row.summary.totalAttempted} attempted,{" "}
-                        {row.summary.accuracyPct}% accuracy
-                      </span>
-                      {row.summary.criticalFailsCount > 0 ? (
-                        <span className="text-xs font-semibold text-rose-600">
-                          {row.summary.criticalFailsCount} critical fail(s)
+                      {isLive ? (
+                        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                          Live
+                        </span>
+                      ) : null}
+                      {status != null ? (
+                        <span className={`text-sm font-semibold ${statusClass}`}>
+                          {status}
+                          {row?.overrideStatus != null ? " (override)" : ""}
                         </span>
                       ) : null}
                     </div>
                     <Link
-                      href={`/teacher/class/${classInfo.id}/student/${row.studentId}/review`}
+                      href={`/teacher/class/${classInfo.id}/student/${student.id}/review`}
                     >
                       <Button variant="secondary" size="sm">
                         Review session
                       </Button>
                     </Link>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </Card>
-      ) : null}
-
-      <Card>
-        <h2 className="text-lg font-semibold text-slate-900">
-          Reset trainee PINs
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Leave the PIN blank to generate a random one.
-        </p>
-        <div className="mt-4">
-          <TeacherPinResetList classId={classInfo.id} students={students} />
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+                    <span>
+                      Joined{" "}
+                      {student.createdAt.toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <span>
+                      Last active{" "}
+                      {student.lastActiveAt
+                        ? student.lastActiveAt.toLocaleDateString(undefined, {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                    </span>
+                    {row ? (
+                      <span>
+                        {row.summary.totalAttempted} attempted,{" "}
+                        {row.summary.accuracyPct}% accuracy
+                        {row.summary.criticalFailsCount > 0
+                          ? ` · ${row.summary.criticalFailsCount} critical fail(s)`
+                          : ""}
+                      </span>
+                    ) : (
+                      <span>No attempts yet</span>
+                    )}
+                  </div>
+                  <div className="border-t border-slate-200 pt-2">
+                    <TeacherPinResetList
+                      classId={classInfo.id}
+                      students={[{ id: student.id, nickname: student.nickname }]}
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </Card>
     </main>

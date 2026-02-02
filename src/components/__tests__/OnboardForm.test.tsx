@@ -26,7 +26,7 @@ describe("OnboardForm", () => {
     localStorage.clear();
   });
 
-  it("enables submit after nickname and PIN are set", async () => {
+  it("enables submit after first name or nickname is set", async () => {
     mockedUseActionState.mockReturnValue([{ ok: false }, jest.fn(), false]);
     render(
       <OnboardForm
@@ -36,14 +36,11 @@ describe("OnboardForm", () => {
       />,
     );
 
-    const submit = screen.getByRole("button", { name: "Start grinding" });
+    const submit = screen.getByRole("button", { name: "Start assessment" });
     expect(submit).toBeDisabled();
 
-    const option = screen.getAllByRole("button")[0];
-    await userEvent.click(option);
-
-    const pinInput = screen.getByPlaceholderText("1234");
-    await userEvent.type(pinInput, "1234");
+    const nameInput = screen.getByPlaceholderText("Your first name or nickname");
+    await userEvent.type(nameInput, "Alex");
 
     expect(submit).toBeEnabled();
   });

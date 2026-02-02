@@ -11,7 +11,7 @@ import { TeacherLiveStudents } from "@/components/TeacherLiveStudents";
 export default async function TeacherHomePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/api/auth/signin");
+    redirect("/api/auth/signin?callbackUrl=/teacher");
   }
 
   const classes = await prisma.class.findMany({
@@ -30,7 +30,7 @@ export default async function TeacherHomePage() {
             Your cohorts
           </h1>
         </div>
-        <TeacherAuth />
+        <TeacherAuth session={session} />
       </div>
 
       <div className="flex justify-end">

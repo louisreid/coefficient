@@ -50,10 +50,10 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
           {classInfo.name}
         </p>
         <h1 className="text-3xl font-semibold text-slate-900">
-          Pick your pseudonym
+          First name or nickname
         </h1>
         <p className="text-base text-slate-600">
-          Choose a pseudonym to stay anonymous in this cohort.
+          Enter what you’d like to be called in this cohort.
         </p>
       </header>
 

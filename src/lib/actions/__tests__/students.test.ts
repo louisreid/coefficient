@@ -27,19 +27,18 @@ describe("student actions", () => {
   });
   afterAll(async () => disconnectDatabase());
 
-  it("creates a student with hashed PIN", async () => {
+  it("creates a student without PIN (optional email)", async () => {
     const klass = await createClass({ joinCode: "COE-AAAA", teacherId: null });
     const formData = new FormData();
     formData.set("classId", klass.id);
     formData.set("nickname", "Clever Gorilla");
-    formData.set("pin", "1234");
 
     const result = await createStudentAction({ ok: false }, formData);
     expect(result.ok).toBe(true);
 
     const student = await prisma.student.findUnique({ where: { id: result.studentId } });
-    expect(student?.pinHash).toBeTruthy();
-    expect(student?.pinHash).not.toBe("1234");
+    expect(student?.pinHash).toBeNull();
+    expect(student?.nickname).toBe("Clever Gorilla");
   });
 
   it("logs in a student with correct PIN", async () => {

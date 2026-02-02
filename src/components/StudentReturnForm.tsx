@@ -4,9 +4,11 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   loginStudentAction,
+  requestMagicLinkAction,
   requestStudentResetChallengeAction,
   resetStudentPinAction,
   type LoginStudentState,
+  type RequestMagicLinkState,
   type ResetChallengeState,
   type ResetPinState,
 } from "@/lib/actions/students";
@@ -21,6 +23,7 @@ import {
 } from "@/lib/storage/recentClasses";
 
 const loginInitial: LoginStudentState = { ok: false };
+const magicLinkInitial: RequestMagicLinkState = { ok: false };
 const resetChallengeInitial: ResetChallengeState = { ok: false };
 const resetPinInitial: ResetPinState = { ok: false };
 
@@ -28,7 +31,7 @@ type AttemptSummary = { id: string; prompt: string; correctAnswer: string };
 
 export function StudentReturnForm() {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "reset">("login");
+  const [mode, setMode] = useState<"magic" | "pin" | "reset">("magic");
   const [joinCode, setJoinCode] = useState("");
   const [recentClasses, setRecentClasses] = useState<RecentClass[]>([]);
   const [pin, setPin] = useState("");
@@ -38,6 +41,10 @@ export function StudentReturnForm() {
     [],
   );
 
+  const [magicState, magicAction, magicPending] = useActionState(
+    requestMagicLinkAction,
+    magicLinkInitial,
+  );
   const [loginState, loginAction, loginPending] = useActionState(
     loginStudentAction,
     loginInitial,
@@ -57,13 +64,13 @@ export function StudentReturnForm() {
       localStorage.setItem("gorillamaths.classId", loginState.classId);
       localStorage.setItem("gorillamaths.loginAt", Date.now().toString());
       if (loginState.className && joinCode) {
-        const updated = upsertRecentClass({
+        upsertRecentClass({
           joinCode,
           className: loginState.className,
           lastUsedAt: Date.now(),
         });
-        setRecentClasses(updated);
       }
+      setRecentClasses(readRecentClasses());
       router.push("/play");
     }
   }, [joinCode, loginState, router]);
@@ -115,7 +122,57 @@ export function StudentReturnForm() {
         </div>
       ) : null}
 
-      {mode === "login" ? (
+      {mode === "magic" ? (
+        <div className="flex flex-col gap-4">
+          <form action={magicAction} className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-600">
+                Email address
+              </label>
+              <Input
+                type="email"
+                name="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-600">
+                Join code <span className="font-normal text-slate-500">(optional)</span>
+              </label>
+              <Input
+                name="joinCode"
+                placeholder="COE-ABCD"
+                autoComplete="off"
+                className="text-lg"
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+              />
+            </div>
+            {magicState.error ? (
+              <p className="text-sm text-rose-600">{magicState.error}</p>
+            ) : null}
+            {magicState.ok ? (
+              <p className="text-sm text-emerald-600">
+                If that email is registered, we sent you a link. Check your inbox.
+              </p>
+            ) : null}
+            <Button type="submit" size="lg" disabled={magicPending}>
+              {magicPending ? "Sending..." : "Email me a magic link"}
+            </Button>
+          </form>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-fit px-0 text-xs text-slate-500"
+            onClick={() => setMode("pin")}
+          >
+            I have a PIN
+          </Button>
+        </div>
+      ) : mode === "pin" ? (
         <form action={loginAction} className="flex flex-col gap-4">
           <Input
             name="joinCode"
@@ -127,11 +184,11 @@ export function StudentReturnForm() {
           />
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-600">
-              Previous nickname
+              First name or nickname
             </label>
             <Input
               name="nickname"
-              placeholder="Previous nickname"
+              placeholder="Same as when you joined"
               autoComplete="off"
             />
           </div>
@@ -158,6 +215,15 @@ export function StudentReturnForm() {
           <Button type="submit" size="lg" disabled={loginPending || pin.length !== 4}>
             {loginPending ? "Checking..." : "Return to class"}
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-fit px-0 text-xs text-slate-500"
+            onClick={() => setMode("magic")}
+          >
+            Email me a magic link instead
+          </Button>
         </form>
       ) : (
         <div className="flex flex-col gap-4">
@@ -166,7 +232,7 @@ export function StudentReturnForm() {
             variant="ghost"
             size="sm"
             className="w-fit px-0 text-xs text-slate-500"
-            onClick={() => setMode("login")}
+            onClick={() => setMode("pin")}
           >
             Back to login
           </Button>
@@ -182,11 +248,11 @@ export function StudentReturnForm() {
               />
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-600">
-                  Previous nickname
+                  First name or nickname
                 </label>
                 <Input
                   name="nickname"
-                  placeholder="Previous nickname"
+                  placeholder="Same as when you joined"
                   autoComplete="off"
                 />
               </div>

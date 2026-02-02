@@ -10,14 +10,14 @@ import { authOptions } from "@/lib/auth";
 export default async function TeacherNewPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/api/auth/signin");
+    redirect("/api/auth/signin?callbackUrl=/teacher/new");
   }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-8 px-6 py-12">
       <div className="flex items-center justify-between">
         <div />
-        <TeacherAuth />
+        <TeacherAuth session={session} />
       </div>
       <header className="space-y-2">
         <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">

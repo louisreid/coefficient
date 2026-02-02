@@ -21,6 +21,9 @@
 # production
 /build
 
+# local sqlite
+prisma/dev.db
+
 # misc
 .DS_Store
 *.pem

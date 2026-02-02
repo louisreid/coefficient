@@ -11,7 +11,7 @@ export async function createClassAction(formData: FormData) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    redirect("/api/auth/signin");
+    redirect("/api/auth/signin?callbackUrl=/teacher/new");
   }
 
   const parsed = classSchema.safeParse({

@@ -36,12 +36,17 @@ If this loop works for ROV competence assessment, the same engine can generalize
 ```bash
 pnpm install
 pnpm prisma migrate dev
-pnpm dev
+pnpm dev:local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to start.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000) (or [http://localhost:3000](http://localhost:3000)) to start.
 
-## Teacher login (Google OAuth)
+- **`pnpm dev:local`** — Recommended: binds to 127.0.0.1 and uses webpack (avoids `uv_interface_addresses` and Turbopack/Tailwind resolution issues).
+- **`pnpm dev`** — Runs Next.js + Jest watch; use if you need the test watcher.
+
+## Environment variables
+
+### Teacher login (Google OAuth)
 
 Create a Google OAuth app and set these in `.env`:
 
@@ -49,6 +54,19 @@ Create a Google OAuth app and set these in `.env`:
 - `GOOGLE_CLIENT_SECRET`
 - `NEXTAUTH_URL` (e.g. `http://localhost:3000`)
 - `NEXTAUTH_SECRET` (already generated locally)
+
+### Scenario explanations (Gemini)
+
+For AI-powered wrong-answer explanations in scenario assessments, set:
+
+- `GEMINI_API_KEY` — Get a key from [Google AI Studio](https://aistudio.google.com/app/apikey). If unset, the explain API returns a fallback explanation and logs in development.
+
+### Magic link (trainee return)
+
+To email magic links when trainees return by email, set:
+
+- `RESEND_API_KEY` — API key from [Resend](https://resend.com). If unset, magic-link emails are skipped (in dev the link is logged to the console).
+- `MAGIC_LINK_FROM_EMAIL` (optional) — From address for magic-link emails; defaults to Resend’s onboarding address.
 
 ## Production (https://coefficient-phi.vercel.app)
 

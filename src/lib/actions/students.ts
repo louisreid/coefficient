@@ -3,13 +3,16 @@
 import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/db";
+import { sendMagicLinkEmail } from "@/lib/email";
 import {
   studentLoginSchema,
+  studentMagicLinkRequestSchema,
   studentOnboardSchema,
   studentResetRequestSchema,
   studentResetVerifySchema,
 } from "@/lib/validation";
 import { authOptions } from "@/lib/auth";
+import { randomBytes } from "crypto";
 
 export type CreateStudentState = {
   ok: boolean;
@@ -45,6 +48,18 @@ export type TeacherResetPinState = {
   newPin?: string;
 };
 
+export type RequestMagicLinkState = {
+  ok: boolean;
+  error?: string;
+};
+
+export type VerifyMagicLinkState = {
+  ok: boolean;
+  error?: string;
+  studentId?: string;
+  classId?: string;
+};
+
 const hashPin = async (pin: string) => bcrypt.hash(pin, 10);
 
 const generateRandomPin = () =>
@@ -67,22 +82,20 @@ export async function createStudentAction(
   const parsed = studentOnboardSchema.safeParse({
     nickname: formData.get("nickname"),
     classId: formData.get("classId"),
-    pin: formData.get("pin"),
+    email: formData.get("email"),
   });
 
   if (!parsed.success) {
-    return { ok: false, error: "Enter a valid nickname and PIN." };
+    return { ok: false, error: "Enter a valid first name or nickname." };
   }
 
-  const pinHash = await hashPin(parsed.data.pin);
   const now = new Date();
-
   const student = await prisma.student.create({
     data: {
       classId: parsed.data.classId,
       nickname: parsed.data.nickname,
-      pinHash,
-      pinUpdatedAt: now,
+      email: parsed.data.email ?? null,
+      pinHash: null,
       lastActiveAt: now,
     },
   });
@@ -109,7 +122,7 @@ export async function loginStudentAction(
     parsed.data.nickname,
   );
   if (!result?.student?.pinHash) {
-    return { ok: false, error: "Student not found." };
+    return { ok: false, error: "No PIN set for this account. Use the email link to return, or ask your assessor to set a PIN." };
   }
 
   const matches = await bcrypt.compare(parsed.data.pin, result.student.pinHash);
@@ -128,6 +141,87 @@ export async function loginStudentAction(
     classId: result.classId,
     className: result.className,
   };
+}
+
+const MAGIC_LINK_EXPIRY_MS = 15 * 60 * 1000;
+const getBaseUrl = () =>
+  process.env.NEXTAUTH_URL ??
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
+
+export async function requestMagicLinkAction(
+  _prevState: RequestMagicLinkState,
+  formData: FormData,
+): Promise<RequestMagicLinkState> {
+  const rawJoinCode = formData.get("joinCode");
+  const parsed = studentMagicLinkRequestSchema.safeParse({
+    email: formData.get("email"),
+    joinCode: typeof rawJoinCode === "string" && rawJoinCode.trim() ? rawJoinCode : undefined,
+  });
+
+  if (!parsed.success) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+
+  const where: { email: string; classId?: string } = { email: parsed.data.email };
+  if (parsed.data.joinCode) {
+    const klass = await prisma.class.findUnique({ where: { joinCode: parsed.data.joinCode } });
+    if (!klass) {
+      return { ok: true };
+    }
+    where.classId = klass.id;
+  }
+
+  const student = await prisma.student.findFirst({
+    where,
+    select: { id: true, classId: true },
+  });
+  if (!student) {
+    return { ok: true };
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const expires = new Date(Date.now() + MAGIC_LINK_EXPIRY_MS);
+  await prisma.student.update({
+    where: { id: student.id },
+    data: { magicLinkToken: token, magicLinkExpires: expires },
+  });
+
+  const baseUrl = getBaseUrl();
+  const magicLinkUrl = `${baseUrl}/student/return/verify?token=${encodeURIComponent(token)}`;
+  const sendResult = await sendMagicLinkEmail(parsed.data.email, magicLinkUrl);
+  if (!sendResult.ok) {
+    return { ok: false, error: sendResult.error ?? "Failed to send email." };
+  }
+
+  return { ok: true };
+}
+
+export async function verifyMagicLinkAction(
+  token: string,
+): Promise<VerifyMagicLinkState> {
+  if (!token?.trim()) {
+    return { ok: false, error: "Invalid or expired link." };
+  }
+
+  const student = await prisma.student.findFirst({
+    where: {
+      magicLinkToken: token,
+      magicLinkExpires: { gt: new Date() },
+    },
+    select: { id: true, classId: true },
+  });
+  if (!student) {
+    return { ok: false, error: "Invalid or expired link." };
+  }
+
+  await prisma.student.update({
+    where: { id: student.id },
+    data: { magicLinkToken: null, magicLinkExpires: null, lastActiveAt: new Date() },
+  });
+
+  return { ok: true, studentId: student.id, classId: student.classId };
 }
 
 export async function requestStudentResetChallengeAction(

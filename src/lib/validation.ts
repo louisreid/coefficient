@@ -32,8 +32,18 @@ export const pinSchema = z.object({
     .regex(/^\d{4}$/, "PIN must be 4 digits"),
 });
 
+const optionalEmail = z.preprocess(
+  (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+  z.string().email().optional(),
+);
+
 export const studentOnboardSchema = nicknameSchema.extend({
-  pin: pinSchema.shape.pin,
+  email: optionalEmail.optional(),
+});
+
+export const studentMagicLinkRequestSchema = z.object({
+  email: z.string().trim().min(1, "Email is required").email("Invalid email"),
+  joinCode: joinCodeSchema.shape.joinCode.optional(),
 });
 
 export const studentLoginSchema = z.object({

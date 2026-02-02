@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createStudentAction,
@@ -8,41 +8,9 @@ import {
 } from "@/lib/actions/students";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { PinInput } from "@/components/PinInput";
-import { hashString, seededRandom } from "@/lib/questions/random";
 import { upsertRecentClass } from "@/lib/storage/recentClasses";
 
 const initialState: CreateStudentState = { ok: false };
-
-const ADJECTIVES = [
-  "Silver",
-  "Neon",
-  "Brave",
-  "Quiet",
-  "Rapid",
-  "Solar",
-  "Mighty",
-  "Clever",
-  "Cosmic",
-  "Wild",
-  "Fierce",
-  "Golden",
-];
-
-const ANIMALS = [
-  "Gorilla",
-  "Lemur",
-  "Panda",
-  "Tiger",
-  "Otter",
-  "Falcon",
-  "Python",
-  "Koala",
-  "Jaguar",
-  "Orca",
-  "Lynx",
-  "Raven",
-];
 
 type OnboardFormProps = {
   classId: string;
@@ -56,21 +24,8 @@ export function OnboardForm({ classId, className, joinCode }: OnboardFormProps) 
     createStudentAction,
     initialState,
   );
-  const [selected, setSelected] = useState<string>("");
-  const [custom, setCustom] = useState<string>("");
-  const [pin, setPin] = useState("");
-
-  const nicknameOptions = useMemo(() => {
-    const rand = seededRandom(`${classId}:${hashString(classId)}`);
-    const options = new Set<string>();
-    while (options.size < 12) {
-      const option = `${ADJECTIVES[Math.floor(rand() * ADJECTIVES.length)]} ${
-        ANIMALS[Math.floor(rand() * ANIMALS.length)]
-      }`;
-      options.add(option);
-    }
-    return Array.from(options);
-  }, [classId]);
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     if (state.ok && state.studentId && state.classId) {
@@ -86,59 +41,37 @@ export function OnboardForm({ classId, className, joinCode }: OnboardFormProps) 
     }
   }, [className, joinCode, state, router]);
 
-  const nicknameToUse = custom.trim() || selected;
-
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <input type="hidden" name="classId" value={classId} />
-      <input type="hidden" name="nickname" value={nicknameToUse} />
-
-      <div className="grid grid-cols-2 gap-3">
-        {nicknameOptions.map((option) => (
-          <button
-            type="button"
-            key={option}
-            onClick={() => {
-              setSelected(option);
-              setCustom("");
-            }}
-            className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
-              selected === option
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-700"
-            }`}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
+      <input type="hidden" name="nickname" value={displayName.trim()} />
 
       <div className="space-y-2">
         <label className="text-sm font-semibold text-slate-600">
-          Or type your own
+          First name or nickname
         </label>
         <Input
-          value={custom}
-          onChange={(event) => {
-            setCustom(event.target.value);
-            setSelected("");
-          }}
-          placeholder="Your nickname"
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          placeholder="Your first name or nickname"
+          autoComplete="off"
         />
       </div>
 
       <div className="space-y-2">
         <label className="text-sm font-semibold text-slate-600">
-          Set a 4-digit PIN
+          Email <span className="font-normal text-slate-500">(optional)</span>
         </label>
-        <PinInput
-          name="pin"
-          value={pin}
-          onChange={setPin}
-          placeholder="1234"
+        <Input
+          type="email"
+          name="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
         />
         <p className="text-xs text-slate-500">
-          You will use this PIN to return later.
+          We can email you a magic link to return later.
         </p>
       </div>
 
@@ -149,7 +82,7 @@ export function OnboardForm({ classId, className, joinCode }: OnboardFormProps) 
       <Button
         type="submit"
         size="lg"
-        disabled={pending || !nicknameToUse || pin.length !== 4}
+        disabled={pending || displayName.trim().length < 2}
       >
         {pending ? "Saving..." : "Start assessment"}
       </Button>

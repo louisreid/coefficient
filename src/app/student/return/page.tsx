@@ -13,7 +13,7 @@ export default function StudentReturnPage() {
           Welcome back
         </h1>
         <p className="text-base text-slate-600">
-          Log in with your nickname and PIN, or reset it if needed.
+          Get a magic link sent to your email, or log in with your name and PIN if your assessor set one.
         </p>
       </header>
 

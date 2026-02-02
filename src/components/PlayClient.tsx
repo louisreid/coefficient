@@ -69,6 +69,9 @@ export function PlayClient() {
     revealCorrect: boolean;
   } | null>(null);
   const [pendingNext, setPendingNext] = useState<boolean>(false);
+  const [justCorrectChoiceIndex, setJustCorrectChoiceIndex] = useState<number | null>(null);
+  const [showNextWithTimer, setShowNextWithTimer] = useState(false);
+  const [countdownSeconds, setCountdownSeconds] = useState(4);
   const [streakDelta, setStreakDelta] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
   const [scenarioIndex, setScenarioIndex] = useState(0);
@@ -145,6 +148,9 @@ export function PlayClient() {
       setJustification("");
       setReview(null);
       setPendingNext(false);
+      setJustCorrectChoiceIndex(null);
+      setShowNextWithTimer(false);
+      setCountdownSeconds(4);
       await setStudentLiveQuestionAction({
         studentId,
         questionHash: next.idHash,
@@ -154,6 +160,20 @@ export function PlayClient() {
     },
     [studentId, scenarioIndex, unitStats],
   );
+
+  useEffect(() => {
+    if (!showNextWithTimer || countdownSeconds <= 0) return;
+    const interval = window.setInterval(() => {
+      setCountdownSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [showNextWithTimer, countdownSeconds]);
+
+  useEffect(() => {
+    if (showNextWithTimer && countdownSeconds === 0) {
+      void nextScenario();
+    }
+  }, [showNextWithTimer, countdownSeconds, nextScenario]);
 
   useEffect(() => {
     if (studentId && !scenario) {
@@ -223,7 +243,9 @@ export function PlayClient() {
       setStreakDelta(1);
       setReview(null);
       setPendingNext(false);
-      await nextScenario();
+      setJustCorrectChoiceIndex(selectedChoiceIndex);
+      setShowNextWithTimer(true);
+      setCountdownSeconds(4);
       return;
     }
 
@@ -507,76 +529,135 @@ export function PlayClient() {
           Choose an option
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {choices.map((choice, index) => (
-            <Button
-              key={`${choice.label}-${index}`}
-              variant="secondary"
-              size="lg"
-              type="button"
-              onClick={() => handleChoiceSelect(index)}
-              className={`relative flex items-start justify-start gap-2 text-left ${
-                selectedChoiceIndex === index ? "ring-2 ring-slate-400" : ""
-              }`}
-            >
-              <span className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
-                {shortcutLabels[index] ?? ""}
-              </span>
-              <span className="flex-1">
-                <span className="font-semibold">{choice.label}.</span>{" "}
-                {choice.text}
-              </span>
-            </Button>
-          ))}
+          {choices.map((choice, index) => {
+            const isCorrectHighlight = justCorrectChoiceIndex === index;
+            const isWrongHighlight = review !== null && selectedChoiceIndex === index;
+            return (
+              <Button
+                key={`${choice.label}-${index}`}
+                variant="secondary"
+                size="lg"
+                type="button"
+                onClick={() => handleChoiceSelect(index)}
+                disabled={isReviewing || showNextWithTimer}
+                className={`relative flex items-start justify-start gap-2 text-left ${
+                  selectedChoiceIndex === index ? "ring-2 ring-slate-400" : ""
+                } ${
+                  isCorrectHighlight
+                    ? "ring-2 ring-emerald-500 bg-emerald-50 border-emerald-200"
+                    : ""
+                } ${
+                  isWrongHighlight
+                    ? "ring-2 ring-rose-500 bg-rose-50 border-rose-200"
+                    : ""
+                }`}
+              >
+                <span className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm">
+                  {shortcutLabels[index] ?? ""}
+                </span>
+                <span className="flex-1">
+                  <span className="font-semibold">{choice.label}.</span>{" "}
+                  {choice.text}
+                </span>
+              </Button>
+            );
+          })}
         </div>
 
-        <div className="mt-4 space-y-2">
-          <label className="block text-left text-sm font-semibold text-slate-600">
-            Why did you choose this? (optional)
-          </label>
-          <Input
-            value={justification}
-            onChange={(e) => setJustification(e.target.value)}
-            onKeyDown={(event: ReactKeyboardEvent<HTMLInputElement>) => {
-              if (event.key === "Enter" && selectedChoiceIndex !== null) {
-                event.preventDefault();
-                void onSubmit();
-              }
-            }}
-            placeholder="Short justification..."
-            className="text-left"
-            disabled={isReviewing}
-          />
-        </div>
-
-        <form
-          className="mt-4 flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (selectedChoiceIndex !== null) void onSubmit();
-          }}
-        >
-          <div className="flex flex-wrap items-center justify-center gap-2">
+        {showNextWithTimer ? (
+          <div className="mt-4 flex flex-col items-center gap-2">
             <Button
-              size="lg"
-              type="submit"
-              disabled={isReviewing || selectedChoiceIndex === null}
-            >
-              Submit
-            </Button>
-            <Button
-              variant="ghost"
               size="lg"
               type="button"
-              onClick={() => {
-                setSelectedChoiceIndex(null);
-                setJustification("");
-              }}
-              disabled={isReviewing}
+              onClick={() => void nextScenario()}
+              className="relative min-w-[180px]"
             >
-              Clear
+              <span className="relative z-10">Next scenario</span>
+              <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <svg
+                  className="-rotate-90 size-14"
+                  viewBox="0 0 56 56"
+                  aria-hidden
+                >
+                  <circle
+                    cx="28"
+                    cy="28"
+                    r="24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    className="text-white/30"
+                  />
+                  <circle
+                    cx="28"
+                    cy="28"
+                    r="24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 24 * (countdownSeconds / 4)} ${2 * Math.PI * 24}`}
+                    className="text-white transition-[stroke-dasharray] duration-1000"
+                  />
+                </svg>
+              </span>
             </Button>
+            <p className="text-xs text-slate-500">
+              Auto-advancing in {countdownSeconds}s
+            </p>
           </div>
-        </form>
+        ) : (
+          <>
+            <div className="mt-4 space-y-2">
+              <label className="block text-left text-sm font-semibold text-slate-600">
+                Why did you choose this? (optional)
+              </label>
+              <Input
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                onKeyDown={(event: ReactKeyboardEvent<HTMLInputElement>) => {
+                  if (event.key === "Enter" && selectedChoiceIndex !== null) {
+                    event.preventDefault();
+                    void onSubmit();
+                  }
+                }}
+                placeholder="Short justification..."
+                className="text-left"
+                disabled={isReviewing}
+              />
+            </div>
+
+            <form
+              className="mt-4 flex flex-col gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (selectedChoiceIndex !== null) void onSubmit();
+              }}
+            >
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  size="lg"
+                  type="submit"
+                  disabled={isReviewing || selectedChoiceIndex === null}
+                >
+                  Submit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  type="button"
+                  onClick={() => {
+                    setSelectedChoiceIndex(null);
+                    setJustification("");
+                  }}
+                  disabled={isReviewing}
+                >
+                  Clear
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
 
         <p className="mt-3 text-xs text-slate-500">
           Shortcuts: Q/W/A/S. Enter submits your answer.

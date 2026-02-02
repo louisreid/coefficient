@@ -95,7 +95,8 @@ export const explainWrongAnswer = async (
       steps: d.correctSequence ?? d.steps,
       llmUsed: true,
     };
-  } catch {
+  } catch (e) {
+    console.error("[explainWrongAnswer] API error:", e);
     return {
       matchedPatternId: null,
       confidence: 0,
