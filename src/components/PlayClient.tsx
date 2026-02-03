@@ -81,6 +81,7 @@ export function PlayClient() {
     total: 0,
     wrongStreak: 0,
   });
+  const [fieldCheckEnabled, setFieldCheckEnabled] = useState(false);
 
   const labels = getScenarioChoiceLabels();
   const choices = useMemo(
@@ -114,6 +115,20 @@ export function PlayClient() {
     setStudentId(storedStudentId);
     setClassId(storedClassId);
   }, [router]);
+
+  useEffect(() => {
+    if (!studentId || !classId) return;
+    fetch(
+      `/api/student/cohort-settings?classId=${encodeURIComponent(classId)}&studentId=${encodeURIComponent(studentId)}`
+    )
+      .then((r) => r.json())
+      .then((data: { allowMediaUploads?: boolean; fieldVideoUnits?: unknown[] }) => {
+        setFieldCheckEnabled(
+          !!data.allowMediaUploads && !!data.fieldVideoUnits?.length
+        );
+      })
+      .catch(() => setFieldCheckEnabled(false));
+  }, [studentId, classId]);
 
   useEffect(() => {
     if (streakDelta === null) return;
@@ -405,6 +420,19 @@ export function PlayClient() {
 
   return (
     <div className="flex flex-col gap-6">
+      {fieldCheckEnabled ? (
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={() => router.push("/play/field-check")}
+            className="inline-flex items-center gap-2"
+          >
+            <span aria-hidden>📷</span>
+            Field Check (Camera)
+          </Button>
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-3">
         <div className="relative">
           <StatPill label="Streak" value={streak} />

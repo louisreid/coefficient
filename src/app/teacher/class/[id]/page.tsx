@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth/next";
 import { JoinCodeQr } from "@/components/JoinCodeQr";
 import { TeacherAuth } from "@/components/TeacherAuth";
 import { TeacherPinResetList } from "@/components/TeacherPinResetList";
+import { CohortSettingsForm } from "@/components/CohortSettingsForm";
+import { FieldChecksSection } from "@/components/FieldChecksSection";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
@@ -40,7 +42,7 @@ export default async function TeacherClassPage({
     notFound();
   }
 
-  const { classInfo, activeToday, active7Days, topMistakes, topFailureModes, atRisk } = data;
+  const { classInfo, activeToday, active7Days, topMistakes, topFailureModes, atRisk, fieldCaptureStats } = data;
   const students = await prisma.student.findMany({
     where: { classId: classInfo.id },
     orderBy: { createdAt: "asc" },
@@ -116,6 +118,14 @@ export default async function TeacherClassPage({
         classId={classInfo.id}
         reviewItems={reviewItems ?? []}
       />
+
+      <CohortSettingsForm
+        classId={classInfo.id}
+        allowMediaUploads={classInfo.allowMediaUploads}
+        mediaRetentionDays={classInfo.mediaRetentionDays}
+      />
+
+      <FieldChecksSection classId={classInfo.id} stats={fieldCaptureStats} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

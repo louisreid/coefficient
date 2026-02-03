@@ -9,15 +9,19 @@ datasource db {
 }
 
 model Class {
-  id        String    @id @default(cuid())
-  name      String
-  tier      String
-  joinCode  String    @unique
-  teacherId String?
-  createdAt DateTime  @default(now())
-  students  Student[]
-  attempts  Attempt[]
-  teacher   User?     @relation(fields: [teacherId], references: [id])
+  id                 String    @id @default(cuid())
+  name               String
+  tier               String
+  joinCode           String    @unique
+  teacherId          String?
+  allowMediaUploads  Boolean   @default(false)
+  mediaRetentionDays Int?
+  createdAt          DateTime  @default(now())
+  students           Student[]
+  attempts           Attempt[]
+  teacher            User?     @relation(fields: [teacherId], references: [id])
+  assessmentSessions AssessmentSession[]
+  evidenceCaptures   EvidenceCapture[]
 
   @@index([teacherId])
 }
@@ -43,6 +47,8 @@ model Student {
   class                    Class     @relation(fields: [classId], references: [id])
   attempts                 Attempt[]
   assessmentOverrides      AssessmentOverride[]
+  assessmentSessions        AssessmentSession[]
+  evidenceCaptures         EvidenceCapture[]
 
   @@index([classId])
   @@index([email])
@@ -151,6 +157,79 @@ model EvidencePack {
 
   @@index([studentId, unitId])
   @@index([exportedAt])
+}
+
+// --- Field Video Assessment ---
+
+enum AssessmentSessionMode {
+  SCENARIO
+  FIELD_VIDEO
+}
+
+model AssessmentSession {
+  id          String               @id @default(cuid())
+  classId     String
+  studentId   String
+  unitId      String
+  mode        AssessmentSessionMode
+  startedAt   DateTime             @default(now())
+  completedAt DateTime?
+  class       Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student     Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  evidenceCaptures EvidenceCapture[]
+
+  @@index([classId])
+  @@index([studentId])
+  @@index([unitId, startedAt])
+}
+
+enum EvidenceCaptureType {
+  PHOTO
+  VIDEO
+}
+
+model EvidenceCapture {
+  id              String    @id @default(cuid())
+  sessionId       String?
+  studentId       String
+  classId         String
+  unitId          String
+  stepId          String
+  type            EvidenceCaptureType
+  createdAt       DateTime  @default(now())
+  storagePath     String
+  thumbnailPath   String?
+  durationSeconds Int?
+  notes           String?
+  consentStored   Boolean   @default(false)
+  session         AssessmentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  student         Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class           Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  captureAssessment CaptureAssessment?
+
+  @@index([sessionId])
+  @@index([studentId])
+  @@index([classId])
+  @@index([unitId])
+  @@index([createdAt])
+}
+
+model CaptureAssessment {
+  id                  String   @id @default(cuid())
+  captureId           String   @unique
+  aiOverallStatus     String?  // OK | WARN | CRIT | UNKNOWN
+  aiConfidence        Float?
+  aiChecks            Json?    // [{ checkId, status, confidence, evidence, issue?, fix? }]
+  aiSummary           String?
+  aiQuestions         Json?    // askNext[]
+  triageFlags         Json?    // redFlags + deterministic CRITICAL
+  trainerFinalStatus  String?
+  trainerNote         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  capture             EvidenceCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+
+  @@index([captureId])
 }
 
 model AuditEvent {

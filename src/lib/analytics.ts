@@ -23,8 +23,15 @@ export async function getTeacherDashboard(classId: string, teacherId: string) {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const todayStart = startOfDay(now);
 
-  const [activeToday, active7Days, topMistakesRaw, wrongAttemptsWithMeta, atRiskRaw] =
-    await Promise.all([
+  const [
+    activeToday,
+    active7Days,
+    topMistakesRaw,
+    wrongAttemptsWithMeta,
+    atRiskRaw,
+    fieldCapturesCount,
+    fieldCapturesWithAssessment,
+  ] = await Promise.all([
       prisma.student.count({
         where: { classId, lastActiveAt: { gte: todayStart } },
       }),
@@ -61,6 +68,11 @@ export async function getTeacherDashboard(classId: string, teacherId: string) {
           createdAt: { gte: sevenDaysAgo },
         },
         _count: { id: true },
+      }),
+      prisma.evidenceCapture.count({ where: { classId } }),
+      prisma.captureAssessment.findMany({
+        where: { capture: { classId } },
+        select: { aiOverallStatus: true, aiChecks: true },
       }),
     ]);
 
@@ -137,6 +149,25 @@ export async function getTeacherDashboard(classId: string, teacherId: string) {
         : [];
   });
 
+  const fieldCriticalCount = fieldCapturesWithAssessment.filter(
+    (a) => a.aiOverallStatus === "CRIT"
+  ).length;
+  const checkIdCounts = new Map<string, number>();
+  for (const a of fieldCapturesWithAssessment) {
+    const checks = a.aiChecks as Array<{ checkId: string; status: string }> | null;
+    if (checks) {
+      for (const c of checks) {
+        if (c.status === "CRIT" || c.status === "WARN") {
+          checkIdCounts.set(c.checkId, (checkIdCounts.get(c.checkId) ?? 0) + 1);
+        }
+      }
+    }
+  }
+  const topFailingFieldCheckIds = Array.from(checkIdCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([checkId, count]) => ({ checkId, count }));
+
   return {
     classInfo,
     activeToday,
@@ -144,5 +175,10 @@ export async function getTeacherDashboard(classId: string, teacherId: string) {
     topMistakes,
     topFailureModes,
     atRisk,
+    fieldCaptureStats: {
+      totalCaptures: fieldCapturesCount,
+      criticalCount: fieldCriticalCount,
+      topFailingCheckIds: topFailingFieldCheckIds,
+    },
   };
 }

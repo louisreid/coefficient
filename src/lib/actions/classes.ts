@@ -71,3 +71,47 @@ export async function joinClassAction(
 
   return { ok: true, classId: found.id };
 }
+
+export type CohortSettingsState = { ok: boolean; error?: string };
+
+export async function updateClassCohortSettingsAction(
+  _prevState: CohortSettingsState,
+  formData: FormData
+): Promise<CohortSettingsState> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { ok: false, error: "Unauthorized" };
+  }
+
+  const classId = formData.get("classId") as string | null;
+  if (!classId) {
+    return { ok: false, error: "Missing classId" };
+  }
+
+  const cls = await prisma.class.findFirst({
+    where: { id: classId, teacherId: session.user.id },
+    select: { id: true },
+  });
+  if (!cls) {
+    return { ok: false, error: "Class not found" };
+  }
+
+  const allowMediaUploads = formData.get("allowMediaUploads");
+  const mediaRetentionDaysRaw = formData.get("mediaRetentionDays");
+
+  const updates: { allowMediaUploads: boolean; mediaRetentionDays?: number | null } = {
+    allowMediaUploads:
+      allowMediaUploads === "on" || allowMediaUploads === "true" || allowMediaUploads === "1",
+  };
+  if (mediaRetentionDaysRaw !== null && mediaRetentionDaysRaw !== undefined && String(mediaRetentionDaysRaw).trim() !== "") {
+    const n = Number(mediaRetentionDaysRaw);
+    updates.mediaRetentionDays = Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  await prisma.class.update({
+    where: { id: classId },
+    data: updates,
+  });
+
+  return { ok: true };
+}

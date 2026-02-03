@@ -16,9 +16,10 @@ export default function Home() {
       <section className="grid gap-4 sm:grid-cols-2">
         <a
           href="/join"
-          className="rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm transition hover:border-primary"
+          className="group rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm transition hover:border-accent hover:bg-accent/5 hover:shadow-md"
         >
-          <h2 className="text-lg font-semibold text-base-content">
+          <span className="badge badge-accent badge-sm mb-2">Get started</span>
+          <h2 className="text-lg font-semibold text-base-content group-hover:text-accent transition-colors">
             I’m new here
           </h2>
           <p className="mt-2 text-sm text-base-content/70">
@@ -27,9 +28,10 @@ export default function Home() {
         </a>
         <a
           href="/student/return"
-          className="rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm transition hover:border-primary"
+          className="group rounded-2xl border border-base-300 bg-base-100 p-6 shadow-sm transition hover:border-accent hover:bg-accent/5 hover:shadow-md"
         >
-          <h2 className="text-lg font-semibold text-base-content">
+          <span className="badge badge-accent badge-sm mb-2">Returning</span>
+          <h2 className="text-lg font-semibold text-base-content group-hover:text-accent transition-colors">
             I’m returning
           </h2>
           <p className="mt-2 text-sm text-base-content/70">
@@ -39,39 +41,42 @@ export default function Home() {
       </section>
 
       <section id="features" className="space-y-6">
-        <h2 className="text-xl font-semibold text-base-content">Features</h2>
+        <h2 className="text-xl font-semibold text-base-content flex items-center gap-2">
+          <span className="h-1 w-8 rounded-full bg-accent" aria-hidden />
+          Features
+        </h2>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <li className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+          <li className="rounded-xl border-l-4 border-accent bg-base-100 p-4 shadow-sm">
             <h3 className="font-semibold text-base-content">Join with a code</h3>
             <p className="mt-1 text-sm text-base-content/70">
               Enter your cohort join code and set your pseudonym to get started.
             </p>
           </li>
-          <li className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+          <li className="rounded-xl border-l-4 border-accent bg-base-100 p-4 shadow-sm">
             <h3 className="font-semibold text-base-content">Return by PIN or email</h3>
             <p className="mt-1 text-sm text-base-content/70">
               Log back in with your nickname and PIN, or use a magic link sent to your email.
             </p>
           </li>
-          <li className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+          <li className="rounded-xl border-l-4 border-accent bg-base-100 p-4 shadow-sm">
             <h3 className="font-semibold text-base-content">Scenario-based assessment</h3>
             <p className="mt-1 text-sm text-base-content/70">
               Complete competence scenarios, justify your choices, and build evidence.
             </p>
           </li>
-          <li className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+          <li className="rounded-xl border-l-4 border-accent bg-base-100 p-4 shadow-sm">
             <h3 className="font-semibold text-base-content">Live view for assessors</h3>
             <p className="mt-1 text-sm text-base-content/70">
               See who’s active in your cohort and track progress in real time.
             </p>
           </li>
-          <li className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+          <li className="rounded-xl border-l-4 border-accent bg-base-100 p-4 shadow-sm">
             <h3 className="font-semibold text-base-content">Evidence pack export</h3>
             <p className="mt-1 text-sm text-base-content/70">
               Export assessment evidence for audits and review sessions.
             </p>
           </li>
-          <li className="rounded-xl border border-base-300 bg-base-100 p-4 shadow-sm">
+          <li className="rounded-xl border-l-4 border-accent bg-base-100 p-4 shadow-sm">
             <h3 className="font-semibold text-base-content">AI-powered feedback</h3>
             <p className="mt-1 text-sm text-base-content/70">
               Get clear explanations and remediation when answers need improvement.
